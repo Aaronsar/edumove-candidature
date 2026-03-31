@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Edumove — Espace Université</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --navy: #1b1d3a;
+  --border: #e2e2ef;
+  --text: #1b1d3a;
+  --text-muted: #7b7b9a;
+  --bg: #f5f5fb;
+  --white: #ffffff;
+  /* University colors — set dynamically by JS */
+  --uni-color: #1b1d3a;
+  --uni-light: #e8eaf6;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Poppins', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; line-height: 1.6; }
+
+/* HEADER */
+.site-header {
+  background: var(--uni-color);
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 62px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+  transition: background 0.3s;
+}
+.logo-wordmark { font-size: 18px; font-weight: 700; color: white; letter-spacing: -0.01em; }
+.logo-wordmark span { font-weight: 300; opacity: 0.8; }
+.header-right { display: flex; align-items: center; gap: 14px; }
+.header-user { font-size: 12px; color: rgba(255,255,255,0.65); }
+.btn-logout { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+.btn-logout:hover { background: rgba(255,255,255,0.22); }
+
+/* LOGIN */
+.login-wrap { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 62px); padding: 40px; }
+.login-card { background: white; border-radius: 16px; padding: 40px; width: 100%; max-width: 400px; box-shadow: 0 4px 24px rgba(27,29,58,0.1); }
+.login-card h2 { font-size: 22px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+.login-card p { font-size: 13px; color: var(--text-muted); margin-bottom: 28px; }
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 6px; }
+.form-input { width: 100%; padding: 11px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; font-family: inherit; color: var(--text); transition: border-color 0.2s; }
+.form-input:focus { outline: none; border-color: var(--uni-color); }
+.btn-login { width: 100%; padding: 12px; background: var(--uni-color); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; transition: opacity 0.2s; margin-top: 4px; }
+.btn-login:hover { opacity: 0.88; }
+.login-error { display: none; margin-top: 12px; padding: 10px 14px; background: #fff0f0; border: 1px solid #ffcdd2; border-radius: 7px; color: #c62828; font-size: 13px; }
+.pass-wrap { position: relative; }
+.pass-wrap .form-input { padding-right: 44px; }
+.pass-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 4px; display: flex; align-items: center; line-height: 1; }
+.pass-toggle:hover { color: var(--uni-color); }
+.forgot-link { display: block; font-size: 12px; color: var(--uni-color); margin-top: 10px; text-decoration: none; cursor: pointer; }
+.forgot-link:hover { text-decoration: underline; }
+.reset-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: none; align-items: center; justify-content: center; }
+.reset-overlay.visible { display: flex; }
+.reset-modal { background: white; border-radius: 16px; padding: 36px 32px; max-width: 380px; width: 90%; box-shadow: 0 8px 40px rgba(0,0,0,0.18); }
+.reset-modal h3 { margin: 0 0 8px; font-size: 18px; font-weight: 700; color: var(--navy); }
+.reset-modal p { margin: 0 0 20px; font-size: 13px; color: var(--text-muted); }
+.reset-btn-row { display: flex; gap: 10px; margin-top: 16px; }
+.reset-btn { flex: 1; padding: 11px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; transition: opacity 0.2s; }
+.reset-btn.primary { background: var(--uni-color); color: white; }
+.reset-btn.primary:hover { opacity: 0.88; }
+.reset-btn.secondary { background: var(--bg); color: var(--text-muted); border: 1.5px solid var(--border); }
+.reset-success { color: #1b7a34; font-size: 13px; margin-top: 12px; display: none; }
+.reset-success.visible { display: block; }
+.reset-error2 { color: #c62828; font-size: 12px; margin-top: 8px; display: none; }
+.reset-error2.visible { display: block; }
+
+/* DASHBOARD */
+.dashboard { display: none; max-width: 1100px; margin: 0 auto; padding: 28px 24px; }
+.dash-title { font-size: 22px; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
+.dash-subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 28px; }
+
+/* STATS BAR */
+.stats-bar { display: flex; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+.stat-card { background: white; border-radius: 10px; padding: 16px 20px; flex: 1; min-width: 140px; border: 1px solid var(--border); }
+.stat-value { font-size: 28px; font-weight: 700; color: var(--uni-color); line-height: 1; }
+.stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+/* CANDIDATURE TABLE */
+.table-card { background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+.table-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.table-title { font-size: 15px; font-weight: 600; color: var(--navy); }
+.search-input { padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 7px; font-size: 13px; font-family: inherit; width: 220px; }
+.search-input:focus { outline: none; border-color: var(--uni-color); }
+.cand-table { width: 100%; border-collapse: collapse; }
+.cand-table th { padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); background: var(--bg); border-bottom: 1px solid var(--border); }
+.cand-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: top; }
+.cand-table tr:last-child td { border-bottom: none; }
+.cand-table tr.cand-row:hover { background: var(--bg); cursor: pointer; }
+.cand-table tr.cand-row.expanded { background: #fafafe; }
+.badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge-uni { background: var(--uni-light); color: var(--uni-color); }
+.badge-pending { background: #fff8e1; color: #f57f17; }
+.badge-confirmed { background: #e8f5e9; color: #2e7d32; }
+
+/* EXPAND ROW */
+.cand-detail { display: none; background: #f9f9fc; border-bottom: 1px solid var(--border); }
+.cand-detail.open { display: table-row; }
+.cand-detail td { padding: 16px 20px; }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+@media (max-width: 700px) { .detail-grid { grid-template-columns: 1fr; } }
+.detail-section { background: white; border-radius: 8px; padding: 14px; border: 1px solid var(--border); }
+.detail-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--uni-color); margin-bottom: 10px; }
+.detail-row { display: flex; flex-direction: column; margin-bottom: 8px; font-size: 13px; }
+.detail-row:last-child { margin-bottom: 0; }
+.detail-row label { font-size: 11px; color: var(--text-muted); margin-bottom: 2px; }
+.detail-row span { color: var(--navy); font-weight: 500; }
+.doc-link { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; background: var(--uni-light); color: var(--uni-color); border-radius: 6px; font-size: 12px; font-weight: 600; text-decoration: none; margin: 3px 3px 3px 0; transition: opacity 0.2s; }
+.doc-link:hover { opacity: 0.75; }
+.no-docs { font-size: 12px; color: var(--text-muted); font-style: italic; }
+.empty-state { padding: 60px 20px; text-align: center; color: var(--text-muted); font-size: 14px; }
+.empty-icon { font-size: 40px; margin-bottom: 12px; }
+
+/* LOADING */
+.loading-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 62px); gap: 12px; }
+.spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--uni-color); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* MESSAGERIE FAC */
+.msg-section { margin-top: 28px; }
+.msg-section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--uni-color); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.msg-unread-badge { background: var(--uni-color); color: white; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
+.msg-card { background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+.msg-conv-list { border-right: 1px solid var(--border); }
+.msg-conv-item { padding: 14px 18px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
+.msg-conv-item:hover { background: var(--bg); }
+.msg-conv-item.active { background: var(--uni-light); border-left: 3px solid var(--uni-color); }
+.msg-conv-subject { font-size: 13px; font-weight: 600; color: var(--navy); margin-bottom: 3px; }
+.msg-conv-preview { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msg-conv-date { font-size: 11px; color: var(--text-muted); float: right; margin-top: -18px; }
+.msg-conv-unread .msg-conv-subject::after { content: ''; display: inline-block; width: 7px; height: 7px; background: var(--uni-color); border-radius: 50%; margin-left: 6px; vertical-align: middle; }
+.msg-thread { display: flex; flex-direction: column; height: 420px; }
+.msg-thread-header { padding: 14px 18px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600; color: var(--navy); }
+.msg-thread-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: var(--bg); }
+.msg-bubble { max-width: 75%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.5; }
+.msg-bubble.from-fac { background: var(--uni-light); color: var(--navy); align-self: flex-end; border-bottom-right-radius: 4px; }
+.msg-bubble.from-admin { background: white; border: 1px solid var(--border); color: var(--navy); align-self: flex-start; border-bottom-left-radius: 4px; }
+.msg-bubble-meta { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+.msg-thread-footer { padding: 12px; border-top: 1px solid var(--border); display: flex; gap: 10px; background: white; }
+.msg-thread-input { flex: 1; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 13px; resize: none; outline: none; height: 64px; transition: border-color 0.2s; }
+.msg-thread-input:focus { border-color: var(--uni-color); }
+.msg-send-btn { padding: 0 20px; background: var(--uni-color); color: white; border: none; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+.msg-send-btn:hover { opacity: 0.85; }
+.mention { background: rgba(255,255,255,0.3); color: inherit; border-radius: 4px; padding: 1px 5px; font-weight: 700; }
+.msg-bubble.from-admin .mention { background: #ede9fe; color: #5b21b6; }
+.mention-suggest { position: absolute; bottom: calc(100% + 6px); left: 0; background: white; border: 1.5px solid var(--border); border-radius: 10px; box-shadow: 0 4px 20px rgba(27,29,58,0.15); z-index: 200; min-width: 160px; overflow: hidden; }
+.mention-suggest-item { padding: 9px 14px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--navy); display: flex; align-items: center; gap: 8px; transition: background 0.1s; }
+.mention-suggest-item:hover { background: var(--uni-light); }
+/* Delete buttons */
+.msg-bubble-wrap { position: relative; }
+.msg-bubble-wrap .msg-del-btn { display:none; position:absolute; top:2px; right:2px; background:rgba(220,38,38,0.85); color:white; border:none; border-radius:50%; width:18px; height:18px; font-size:10px; line-height:18px; text-align:center; cursor:pointer; padding:0; z-index:5; }
+.msg-bubble-wrap:hover .msg-del-btn { display:block; }
+.msg-bubble-wrap .msg-del-btn:hover { background:#dc2626; transform:scale(1.1); }
+#fac-delete-conv-btn:hover { background:#fef2f2; border-color:#fca5a5; }
+.msg-empty-state { padding: 40px; text-align: center; color: var(--text-muted); font-size: 13px; }
+.msg-layout { display: grid; grid-template-columns: 280px 1fr; min-height: 420px; }
+@media (max-width: 700px) { .msg-layout { grid-template-columns: 1fr; } .msg-conv-list { border-right: none; border-bottom: 1px solid var(--border); } }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+</head>
+<body>
+
+<header class="site-header" id="site-header">
+  <div class="logo-zone">
+    <div class="logo-wordmark">EDUMOVE <span id="uni-label">· Espace Université</span></div>
+  </div>
+  <div class="header-right" id="header-right" style="display:none;">
+    <span class="header-user" id="header-user"></span>
+    <button class="btn-logout" onclick="logout()">Déconnexion</button>
+  </div>
+</header>
+
+<!-- LOADING -->
+<div class="loading-screen" id="loading-screen">
+  <div class="spinner"></div>
+  <div style="font-size:13px;color:var(--text-muted);">Chargement...</div>
+</div>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="login-wrap" style="display:none;">
+  <div class="login-card">
+    <h2>Accès Université</h2>
+    <p>Espace réservé aux partenaires universitaires EDUMOVE</p>
+    <div class="form-group">
+      <label class="form-label">Adresse email</label>
+      <input class="form-input" type="email" id="login-email" placeholder="votre@universite.es" autocomplete="username"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Mot de passe</label>
+      <div class="pass-wrap">
+        <input class="form-input" type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+        <button type="button" class="pass-toggle" onclick="togglePassVisibility()" title="Afficher/masquer le mot de passe">
+          <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg id="eye-off-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+        </button>
+      </div>
+    </div>
+    <button class="btn-login" onclick="doLogin()">Se connecter</button>
+    <a href="javascript:void(0)" class="forgot-link" onclick="showResetModal()">Mot de passe oublié ?</a>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- Reset password modal -->
+<div class="reset-overlay" id="reset-overlay" onclick="if(event.target===this)hideResetModal()">
+  <div class="reset-modal">
+    <h3>Réinitialiser le mot de passe</h3>
+    <p>Entrez votre adresse email. Vous recevrez un lien pour définir un nouveau mot de passe.</p>
+    <input type="email" class="form-input" id="reset-email" placeholder="votre@universite.es" style="margin-bottom:0;"/>
+    <div class="reset-error2" id="reset-error"></div>
+    <div class="reset-success" id="reset-success">✅ Email envoyé ! Vérifiez votre boîte mail.</div>
+    <div class="reset-btn-row">
+      <button class="reset-btn secondary" onclick="hideResetModal()">Annuler</button>
+      <button class="reset-btn primary" id="reset-send-btn" onclick="doResetPassword()">Envoyer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Set new password modal -->
+<div class="reset-overlay" id="newpass-overlay">
+  <div class="reset-modal">
+    <h3>Définir un nouveau mot de passe</h3>
+    <p>Choisissez un nouveau mot de passe pour votre compte.</p>
+    <input type="password" class="form-input" id="newpass-input" placeholder="Nouveau mot de passe" style="margin-bottom:12px;"/>
+    <input type="password" class="form-input" id="newpass-confirm" placeholder="Confirmer le mot de passe"/>
+    <div class="reset-error2" id="newpass-error"></div>
+    <div class="reset-btn-row">
+      <button class="reset-btn primary" onclick="doSetNewPassword()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="dashboard" id="dashboard" style="display:none;">
+  <div class="dash-title" id="dash-title">Dossiers candidats</div>
+  <div class="dash-subtitle" id="dash-subtitle">Vue en lecture seule — accès partenaire EDUMOVE</div>
+
+  <div class="stats-bar" id="stats-bar">
+    <div class="stat-card">
+      <div class="stat-value" id="stat-total">—</div>
+      <div class="stat-label">Dossiers reçus</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-confirmed">—</div>
+      <div class="stat-label">Documents confirmés</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-docs">—</div>
+      <div class="stat-label">Docs uploadés (total)</div>
+    </div>
+  </div>
+
+  <!-- MESSAGERIE -->
+  <div class="msg-section">
+    <div class="msg-section-title">💬 Messagerie Edumove <span class="msg-unread-badge" id="msg-unread-badge" style="display:none;">0</span></div>
+
+    <!-- Info guide messagerie -->
+    <div style="background:#f0effe;border:1.5px solid #c4bef5;border-radius:12px;padding:14px 18px;margin-bottom:16px;font-size:12px;color:#3d3580;line-height:1.7;">
+      <div style="font-weight:700;margin-bottom:8px;font-size:13px;">ℹ️ Comment fonctionne la messagerie ?</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div><strong>📂 FAC ↔ EDUMOVE</strong> — Conversations générales avec l'équipe Edumove (sans étudiant spécifique).</div>
+        <div><strong>🎓 ÉTUDIANTS ↔ UNIVERSITÉ</strong> — Messages directs avec vos étudiants candidats. Ils voient vos messages dans leur espace.</div>
+        <div style="background:white;border-radius:8px;padding:8px 12px;border:1px solid #c4bef5;margin-top:2px;">
+          <strong>🔔 Mentionner @Edumove</strong> — Dans n'importe quel message (conversation Edumove ou étudiant), tapez <code style="background:#ede9fe;padding:1px 5px;border-radius:4px;font-size:11px;">@Edumove</code> pour alerter l'équipe Edumove. Ce tag est <strong>invisible pour l'étudiant</strong> et déclenche une notification email automatique.
+        </div>
+      </div>
+    </div>
+
+    <div class="msg-card">
+      <div class="msg-layout">
+        <div style="padding:8px 10px;border-bottom:1px solid var(--border);">
+          <input id="fac-msg-conv-search" type="text" placeholder="🔍 Rechercher…" oninput="renderConvList()" style="width:100%;box-sizing:border-box;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:12px;outline:none;">
+        </div>
+        <div class="msg-conv-list" id="msg-conv-list">
+          <div class="msg-empty-state">Chargement…</div>
+        </div>
+        <div class="msg-thread" id="msg-thread">
+          <div class="msg-thread-header" id="msg-thread-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>Sélectionnez une conversation</span>
+            <button id="fac-delete-conv-btn" onclick="deleteFacConversation()" style="display:none;background:none;border:1.5px solid #e5e7eb;border-radius:8px;color:#dc2626;font-size:11px;font-weight:600;padding:4px 10px;cursor:pointer;font-family:inherit;">🗑 Supprimer</button>
+          </div>
+          <div class="msg-thread-body" id="msg-thread-body">
+            <div class="msg-empty-state">Aucune conversation sélectionnée</div>
+          </div>
+          <div class="msg-thread-footer" id="msg-thread-footer" style="display:none;">
+            <textarea class="msg-thread-input" id="msg-thread-input" placeholder="Écrire votre réponse…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendFacReply();}"></textarea>
+            <button class="msg-send-btn" onclick="sendFacReply()">Envoyer</button>
+            <div style="font-size:11px;color:#9ca3af;margin-top:6px;line-height:1.5;">💡 Tapez <strong>@Edumove</strong> pour alerter l'équipe — invisible pour l'étudiant</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-card" style="margin-top:28px;">
+    <div class="table-header">
+      <div class="table-title">Liste des candidats</div>
+      <input class="search-input" type="text" id="search-input" placeholder="Rechercher un candidat..." oninput="filterCandidatures()"/>
+    </div>
+    <div id="table-wrap">
+      <div class="empty-state" id="empty-state" style="display:none;">
+        <div class="empty-icon">📭</div>
+        <div>Aucun dossier disponible pour le moment.</div>
+      </div>
+      <table class="cand-table" id="cand-table" style="display:none;">
+        <thead>
+          <tr>
+            <th>Candidat</th>
+            <th>Filière</th>
+            <th>Statut</th>
+            <th>Suivi</th>
+            <th>Documents</th>
+            <th>Date dossier</th>
+          </tr>
+        </thead>
+        <tbody id="cand-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const _API_KEY = 'edm_live_k8x2Qp9Rv4TmWn7YsB3jL6hF';
+function apiHeaders() { return { 'Content-Type': 'application/json', 'x-api-key': _API_KEY }; }
+
+let currentUniversity = null; // 'ue' | 'ucjc' | 'link'
+let allCandidatures = [];
+
+const UNI_CONFIG = {
+  ue: {
+    label: 'Universidad Europea',
+    color: '#c62828',
+    light: '#fce4ec',
+    emoji: '🇪🇸',
+    colLabel: 'Ville · Filière · Langue',
+  },
+  ucjc: {
+    label: 'UCJC — Universidad Camilo José Cela',
+    color: '#1a237e',
+    light: '#e8eaf6',
+    emoji: '🎓',
+    colLabel: 'Confirmation',
+  },
+  link: {
+    label: 'LINK Campus — Università degli Studi LINK',
+    color: '#004d40',
+    light: '#e0f2f1',
+    emoji: '🏛',
+    colLabel: 'Confirmation',
+  }
+};
+
+function applyUniTheme(uni) {
+  const cfg = UNI_CONFIG[uni];
+  if (!cfg) return;
+  document.documentElement.style.setProperty('--uni-color', cfg.color);
+  document.documentElement.style.setProperty('--uni-light', cfg.light);
+  document.getElementById('uni-label').textContent = '· ' + cfg.emoji + ' ' + cfg.label;
+  document.getElementById('dash-title').textContent = 'Dossiers — ' + cfg.label;
+}
+
+// ── AUTH ──
+(async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  document.getElementById('loading-screen').style.display = 'none';
+  if (!session?.user) {
+    document.getElementById('login-wrap').style.display = 'flex';
+    return;
+  }
+  const user = session.user;
+  // Check fac_admins table
+  const { data: facAdminData } = await supabase.from('fac_admins').select('*').eq('email', user.email).single();
+  if (!facAdminData) {
+    await supabase.auth.signOut();
+    document.getElementById('login-wrap').style.display = 'flex';
+    showLoginError("Ce compte n'a pas accès à l'espace université.");
+    return;
+  }
+  currentUniversity = facAdminData.university;
+  applyUniTheme(currentUniversity);
+  document.getElementById('header-right').style.display = 'flex';
+  document.getElementById('header-user').textContent = user.email;
+  document.getElementById('dashboard').style.display = 'block';
+  loadCandidatures();
+})();
+
+supabase.auth.onAuthStateChange((event) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    document.getElementById('newpass-overlay').classList.add('visible');
+  }
+});
+
+function togglePassVisibility() {
+  const input = document.getElementById('login-pass');
+  const eyeOn = document.getElementById('eye-icon');
+  const eyeOff = document.getElementById('eye-off-icon');
+  if (input.type === 'password') {
+    input.type = 'text';
+    eyeOn.style.display = 'none';
+    eyeOff.style.display = '';
+  } else {
+    input.type = 'password';
+    eyeOn.style.display = '';
+    eyeOff.style.display = 'none';
+  }
+}
+
+function showResetModal() {
+  const emailVal = document.getElementById('login-email').value || '';
+  document.getElementById('reset-email').value = emailVal;
+  document.getElementById('reset-error').classList.remove('visible');
+  document.getElementById('reset-success').classList.remove('visible');
+  const btn = document.getElementById('reset-send-btn');
+  btn.disabled = false;
+  btn.textContent = 'Envoyer';
+  document.getElementById('reset-overlay').classList.add('visible');
+}
+
+function hideResetModal() {
+  document.getElementById('reset-overlay').classList.remove('visible');
+}
+
+async function doResetPassword() {
+  const email = document.getElementById('reset-email').value.trim();
+  const errEl = document.getElementById('reset-error');
+  const successEl = document.getElementById('reset-success');
+  const btn = document.getElementById('reset-send-btn');
+  errEl.classList.remove('visible');
+  successEl.classList.remove('visible');
+  if (!email) { errEl.textContent = 'Veuillez entrer votre email.'; errEl.classList.add('visible'); return; }
+  btn.disabled = true;
+  btn.textContent = 'Envoi…';
+  try {
+    const res = await fetch('/api/reset-password', {
+      method: 'POST',
+      headers: apiHeaders(),
+      body: JSON.stringify({ email, redirectTo: window.location.origin + '/fac-admin.html' })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur serveur');
+    successEl.classList.add('visible');
+    btn.textContent = 'Envoyé ✓';
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.add('visible');
+    btn.disabled = false;
+    btn.textContent = 'Envoyer';
+  }
+}
+
+async function doSetNewPassword() {
+  const pass = document.getElementById('newpass-input').value;
+  const confirm = document.getElementById('newpass-confirm').value;
+  const errEl = document.getElementById('newpass-error');
+  errEl.classList.remove('visible');
+  if (!pass || pass.length < 6) { errEl.textContent = 'Le mot de passe doit contenir au moins 6 caractères.'; errEl.classList.add('visible'); return; }
+  if (pass !== confirm) { errEl.textContent = 'Les mots de passe ne correspondent pas.'; errEl.classList.add('visible'); return; }
+  try {
+    const { error } = await supabase.auth.updateUser({ password: pass });
+    if (error) throw error;
+    document.getElementById('newpass-overlay').classList.remove('visible');
+    alert('Mot de passe mis à jour avec succès !');
+  } catch (err) {
+    errEl.textContent = 'Erreur : ' + err.message;
+    errEl.classList.add('visible');
+  }
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  errEl.style.display = 'none';
+  if (!email || !pass) { showLoginError('Veuillez remplir tous les champs.'); return; }
+  try {
+    const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+    if (error) throw error;
+    const user = (await supabase.auth.getUser()).data?.user;
+    if (!user) throw new Error('No user');
+    const { data: facAdminData } = await supabase.from('fac_admins').select('*').eq('email', user.email).single();
+    if (!facAdminData) {
+      await supabase.auth.signOut();
+      showLoginError("Ce compte n'a pas accès à l'espace université.");
+      return;
+    }
+    currentUniversity = facAdminData.university;
+    applyUniTheme(currentUniversity);
+    document.getElementById('header-right').style.display = 'flex';
+    document.getElementById('header-user').textContent = user.email;
+    document.getElementById('login-wrap').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    loadCandidatures().then(() => loadFacMessaging());
+  } catch (e) {
+    showLoginError('Email ou mot de passe incorrect.');
+  }
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function logout() {
+  supabase.auth.signOut();
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('header-right').style.display = 'none';
+  document.getElementById('login-wrap').style.display = 'flex';
+  currentUniversity = null;
+  allCandidatures = [];
+}
+
+// ── LOAD CANDIDATURES ──
+async function loadCandidatures() {
+  const { data, error } = await supabase.from('candidatures').select('*').order('created_at', { ascending: false });
+  if (error) { console.error('Load candidatures error:', error); return; }
+  allCandidatures = (data || []).filter(c => matchUniversity(c));
+  renderStats();
+  renderTable(allCandidatures);
+
+  // Realtime updates
+  supabase.channel('fac-candidatures')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'candidatures' }, async () => {
+      const { data: fresh } = await supabase.from('candidatures').select('*').order('created_at', { ascending: false });
+      allCandidatures = (fresh || []).filter(c => matchUniversity(c));
+      renderStats();
+      renderTable(allCandidatures);
+    })
+    .subscribe();
+}
+
+function matchUniversity(c) {
+  const sel = c.uni_selections || {};
+  if (currentUniversity === 'ue')   return sel.UE != null;
+  if (currentUniversity === 'ucjc') return sel.UCJC != null;
+  if (currentUniversity === 'link') return sel.LINK != null;
+  return false;
+}
+
+function renderStats() {
+  document.getElementById('stat-total').textContent = allCandidatures.length;
+  const confirmed = allCandidatures.filter(c => {
+    if (currentUniversity === 'ue')   return c.uni_selections_at != null;
+    if (currentUniversity === 'ucjc') return c.ucjc_docs_confirmed === true;
+    if (currentUniversity === 'link') return c.link_docs_confirmed === true;
+  }).length;
+  document.getElementById('stat-confirmed').textContent = confirmed;
+  const totalDocs = allCandidatures.reduce((acc, c) => acc + Object.keys(c.documents || {}).length, 0);
+  document.getElementById('stat-docs').textContent = totalDocs;
+}
+
+function filterCandidatures() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const filtered = allCandidatures.filter(c => {
+    const name = ((c.prenom || '') + ' ' + (c.nom || '')).toLowerCase();
+    const email = (c.email || '').toLowerCase();
+    return name.includes(q) || email.includes(q);
+  });
+  renderTable(filtered);
+}
+
+function renderTable(list) {
+  const tbody = document.getElementById('cand-tbody');
+  const table = document.getElementById('cand-table');
+  const empty = document.getElementById('empty-state');
+  tbody.innerHTML = '';
+
+  if (list.length === 0) {
+    table.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+  table.style.display = 'table';
+  empty.style.display = 'none';
+
+  const GLOBAL_STATUS = {
+    en_cours:        { label: 'En cours de traitement', bg: '#ede9fe', color: '#5b21b6' },
+    reponse_edumove: { label: 'Réponse Edumove',        bg: '#dbeafe', color: '#1d4ed8' },
+  };
+  const TRACK_LABELS = { en_attente: 'En attente', dossier_envoye: 'Envoyé', test_paye: 'Test payé', test_passe: 'Test passé', tests_passes: 'Tests passés', entretien_planifie: 'Entretien', entretien_passe: 'Entretien OK', accepte: 'Accepté', acompte_verse: 'Acompte', refuse: 'Refusé', inscrit: 'Inscrit', autre_agence: 'Autre agence' };
+  const TRACK_COLORS = { en_attente: '#999', dossier_envoye: '#1565c0', test_paye: '#6a1b9a', test_passe: '#6a1b9a', tests_passes: '#6a1b9a', entretien_planifie: '#e65100', entretien_passe: '#e65100', accepte: '#2e7d32', acompte_verse: '#2e7d32', refuse: '#d32f2f', inscrit: '#1b5e20', autre_agence: '#795548' };
+  const UNI_TRACK_KEY = { ue: 'UE_status', ucjc: 'UCJC_status', link: 'LINK_status' };
+
+  list.forEach(c => {
+    const name = esc((c.prenom || '') + ' ' + (c.nom || ''));
+    const email = esc(c.email || '—');
+    const phone = esc(c.telephone || c.phone || '—');
+    const filiere = esc(c.filiere || c.filiereBac || '—');
+    const docsCount = Object.keys(c.documents || {}).length;
+    const date = c.created_at ? new Date(c.created_at).toLocaleDateString('fr-FR') : '—';
+
+    // Statut global (même rendu que admin)
+    const gs = GLOBAL_STATUS[c.status] || { label: c.status || '—', bg: '#f3f4f6', color: '#6b7280' };
+    const statusCell = `<span class="badge" style="background:${gs.bg};color:${gs.color};font-weight:600;">${gs.label}</span>`;
+
+    // Suivi par fac (uni_tracking)
+    const trackKey = UNI_TRACK_KEY[currentUniversity];
+    const trackVal = (c.uni_tracking || {})[trackKey] || 'en_attente';
+    const trackColor = TRACK_COLORS[trackVal] || '#999';
+    const trackLabel = TRACK_LABELS[trackVal] || trackVal;
+    const suiviCell = `<span style="font-size:12px;font-weight:600;color:${trackColor};">${esc(trackLabel)}</span>`;
+
+    // Documents
+    const docsCell = docsCount > 0
+      ? `<span class="badge badge-confirmed">${docsCount} fichier${docsCount > 1 ? 's' : ''}</span>`
+      : `<span style="font-size:12px;color:#9ca3af;">—</span>`;
+
+    const row = document.createElement('tr');
+    row.className = 'cand-row';
+    row.innerHTML = `
+      <td>
+        <div style="font-weight:600;color:var(--navy)">${name}</div>
+        <div style="font-size:12px;color:var(--text-muted)">${email}</div>
+        <div style="font-size:12px;color:var(--text-muted)">${phone}</div>
+      </td>
+      <td style="font-size:13px;color:var(--navy)">${filiere}</td>
+      <td>${statusCell}</td>
+      <td>${suiviCell}</td>
+      <td>${docsCell}</td>
+      <td style="color:var(--text-muted);font-size:12px">${date}</td>
+    `;
+    row.onclick = () => toggleDetail(c.id);
+    tbody.appendChild(row);
+
+    // Detail row
+    const detailRow = document.createElement('tr');
+    detailRow.className = 'cand-detail';
+    detailRow.id = 'detail-' + c.id;
+    detailRow.innerHTML = `<td colspan="6">${buildDetail(c)}</td>`;
+    tbody.appendChild(detailRow);
+  });
+}
+
+function toggleDetail(id) {
+  const row = document.getElementById('detail-' + id);
+  const isOpen = row.classList.contains('open');
+  // Close all
+  document.querySelectorAll('.cand-detail.open').forEach(r => r.classList.remove('open'));
+  document.querySelectorAll('.cand-row.expanded').forEach(r => r.classList.remove('expanded'));
+  if (!isOpen) {
+    row.classList.add('open');
+    row.previousElementSibling.classList.add('expanded');
+  }
+}
+
+function buildDetail(c) {
+  // Personal info
+  let personal = `
+    <div class="detail-section">
+      <div class="detail-section-title">👤 Informations personnelles</div>
+      <div class="detail-row"><label>Nom complet</label><span>${esc((c.prenom || '') + ' ' + (c.nom || ''))}</span></div>
+      <div class="detail-row"><label>Email</label><span>${esc(c.email || '—')}</span></div>
+      <div class="detail-row"><label>Téléphone</label><span>${esc(c.telephone || c.phone || '—')}</span></div>
+      <div class="detail-row"><label>Année bac</label><span>${esc(String(c.anneeBac || c.annee_bac || '—'))}</span></div>
+      <div class="detail-row"><label>Filière bac</label><span>${esc(c.filiereBac || c.filiere_bac || '—')}</span></div>
+    </div>`;
+
+  // University-specific info
+  let uniInfo = '';
+  const ueInfo = (c.uni_selections || {}).UE;
+  if (currentUniversity === 'ue') {
+    uniInfo = `
+      <div class="detail-section">
+        <div class="detail-section-title">🇪🇸 Universidad Europea — Détails</div>
+        ${ueInfo ? `
+        <div class="detail-row"><label>Ville / Campus</label><span>${esc(ueInfo.ville || '—')}</span></div>
+        <div class="detail-row"><label>Filière</label><span>${esc(ueInfo.filiere || ueInfo.filiereLabel || '—')}</span></div>
+        <div class="detail-row"><label>Langue</label><span>${esc(ueInfo.langue || '—')}</span></div>
+        ` : '<div class="detail-row"><label>Choix UE</label><span>⏳ En attente de confirmation</span></div>'}
+        ${c.uni_selections_at ? `<div class="detail-row"><label>Date de confirmation</label><span>${new Date(c.uni_selections_at).toLocaleDateString('fr-FR')}</span></div>` : ''}
+      </div>`;
+  } else if (currentUniversity === 'ucjc') {
+    uniInfo = `
+      <div class="detail-section">
+        <div class="detail-section-title">🎓 UCJC — Détails</div>
+        <div class="detail-row"><label>Cours</label><span>100% en espagnol</span></div>
+        <div class="detail-row"><label>Documents confirmés</label><span>${c.ucjc_docs_confirmed ? '✅ Oui' : '⏳ En attente'}</span></div>
+        ${c.ucjc_docs_confirmed_at ? `<div class="detail-row"><label>Date confirmation</label><span>${new Date(c.ucjc_docs_confirmed_at).toLocaleDateString('fr-FR')}</span></div>` : ''}
+      </div>`;
+  } else if (currentUniversity === 'link') {
+    uniInfo = `
+      <div class="detail-section">
+        <div class="detail-section-title">🏛 LINK Campus — Détails</div>
+        <div class="detail-row"><label>Test d'admission</label><span>15 avril 2026</span></div>
+        <div class="detail-row"><label>Documents confirmés</label><span>${c.link_docs_confirmed ? '✅ Oui' : '⏳ En attente'}</span></div>
+        ${c.link_docs_confirmed_at ? `<div class="detail-row"><label>Date confirmation</label><span>${new Date(c.link_docs_confirmed_at).toLocaleDateString('fr-FR')}</span></div>` : ''}
+      </div>`;
+  }
+
+  // Documents
+  const docs = c.documents || {};
+  const docKeys = Object.keys(docs);
+  let docsHtml = docKeys.length > 0
+    ? docKeys.map(k => `<a class="doc-link" href="${esc(docs[k])}" target="_blank" rel="noopener">📄 ${esc(k.replace(/^doc_\d+_/, ''))}</a>`).join('')
+    : '<span class="no-docs">Aucun document uploadé pour l\'instant.</span>';
+
+  let docsSection = `
+    <div class="detail-section">
+      <div class="detail-section-title">📁 Documents uploadés</div>
+      <div>${docsHtml}</div>
+    </div>`;
+
+  return `<div class="detail-grid">${personal}${uniInfo}${docsSection}</div>`;
+}
+
+function statusLabel(s) {
+  const map = { en_attente: 'En attente', en_cours: 'En cours', reponse_edumove: 'Réponse EDUMOVE', dossier_soumis: 'Dossier soumis', accepte: 'Accepté', refuse: 'Refusé', abandon: 'Abandon' };
+  return map[s] || (s || '—');
+}
+
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── MESSAGERIE ──
+let facMsgConversations = [];
+let currentFacMsgConv = null; // { fac_key, candidature_id }
+let facMsgRealtime = null;
+
+function initMentionInput(textarea, suggestions) {
+  const wrap = textarea.parentElement;
+  if (!wrap) return;
+  wrap.style.position = 'relative';
+  let suggestEl = wrap.querySelector('.mention-suggest');
+  if (!suggestEl) {
+    suggestEl = document.createElement('div');
+    suggestEl.className = 'mention-suggest';
+    suggestEl.style.display = 'none';
+    wrap.appendChild(suggestEl);
+  }
+  textarea.addEventListener('input', () => {
+    const val = textarea.value;
+    const cursor = textarea.selectionStart;
+    const before = val.slice(0, cursor);
+    const atIdx = before.lastIndexOf('@');
+    if (atIdx === -1 || (atIdx > 0 && /\S/.test(before[atIdx - 1]))) { suggestEl.style.display = 'none'; return; }
+    const partial = before.slice(atIdx + 1).toLowerCase();
+    const filtered = suggestions.filter(s => s.toLowerCase().startsWith(partial));
+    if (!filtered.length) { suggestEl.style.display = 'none'; return; }
+    suggestEl.innerHTML = filtered.map(s =>
+      `<div class="mention-suggest-item" onmousedown="event.preventDefault()" onclick="insertMentionInto(this,'${s}')">${s}</div>`
+    ).join('');
+    suggestEl.style.display = 'block';
+  });
+  textarea.addEventListener('blur', () => { setTimeout(() => { suggestEl.style.display = 'none'; }, 150); });
+  textarea.addEventListener('keydown', e => { if (e.key === 'Escape') suggestEl.style.display = 'none'; });
+}
+
+function insertMentionInto(el, value) {
+  const suggestEl = el.closest('.mention-suggest');
+  if (!suggestEl) return;
+  const wrap = suggestEl.parentElement;
+  const textarea = wrap.querySelector('textarea');
+  if (!textarea) return;
+  const val = textarea.value;
+  const cursor = textarea.selectionStart;
+  const before = val.slice(0, cursor);
+  const atIdx = before.lastIndexOf('@');
+  const after = val.slice(cursor);
+  textarea.value = before.slice(0, atIdx) + value + ' ' + after;
+  textarea.focus();
+  const pos = atIdx + value.length + 1;
+  textarea.setSelectionRange(pos, pos);
+  suggestEl.style.display = 'none';
+}
+
+function highlightMentions(text) {
+  return String(text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/@(\w+)/g, '<span class="mention">@$1</span>');
+}
+
+function getFacKey() {
+  const map = { link: 'LINK', ucjc: 'UCJC', ue: 'UE' };
+  return map[currentUniversity] || (currentUniversity || '').toUpperCase();
+}
+
+async function loadFacMessaging() {
+  const facKey = getFacKey();
+  const { data, error } = await supabase.from('fac_messages').select('*')
+    .eq('fac_key', facKey)
+    .order('created_at', { ascending: true });
+  if (error) { console.error('Messaging load error:', error); return; }
+
+  // Group into conversations by candidature_id
+  const convMap = {};
+  (data || []).forEach(m => {
+    const key = m.candidature_id || '__general__';
+    if (!convMap[key]) convMap[key] = [];
+    convMap[key].push(m);
+  });
+
+  facMsgConversations = Object.entries(convMap).map(([key, msgs]) => ({
+    candidature_id: key === '__general__' ? null : key,
+    messages: msgs,
+    lastMsg: msgs[msgs.length - 1],
+    hasUnread: msgs.some(m => m.sender_role !== 'fac' && !m.fac_read_at)
+  })).sort((a, b) => new Date(b.lastMsg.created_at) - new Date(a.lastMsg.created_at));
+
+  renderConvList();
+  setTimeout(() => {
+    const inp = document.getElementById('msg-thread-input');
+    if (inp) initMentionInput(inp, ['@Edumove']);
+  }, 200);
+
+  // Realtime
+  if (facMsgRealtime) supabase.removeChannel(facMsgRealtime);
+  facMsgRealtime = supabase.channel('fac-msg-' + facKey)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'fac_messages',
+      filter: 'fac_key=eq.' + facKey }, () => { loadFacMessaging(); })
+    .subscribe();
+}
+
+function renderConvList() {
+  const list = document.getElementById('msg-conv-list');
+  const unreadCount = facMsgConversations.filter(c => c.hasUnread).length;
+  const badge = document.getElementById('msg-unread-badge');
+  if (unreadCount > 0) { badge.textContent = unreadCount; badge.style.display = ''; }
+  else badge.style.display = 'none';
+
+  const q = (document.getElementById('fac-msg-conv-search')?.value || '').toLowerCase().trim();
+  const visible = facMsgConversations.filter((conv, i) => {
+    if (!q) return true;
+    const cand = conv.candidature_id ? allCandidatures.find(c => c.id === conv.candidature_id) : null;
+    const name = cand ? ((cand.prenom || '') + ' ' + (cand.nom || '')).toLowerCase() : '';
+    return name.includes(q);
+  });
+
+  if (!visible.length) {
+    list.innerHTML = `<div class="msg-empty-state">${q ? 'Aucun résultat pour "'+q+'"' : 'Aucun message pour l\'instant'}</div>`;
+    return;
+  }
+
+  list.innerHTML = visible.map((conv, i) => {
+    const originalIndex = facMsgConversations.indexOf(conv);
+    const cand = conv.candidature_id ? allCandidatures.find(c => c.id === conv.candidature_id) : null;
+    const candName = cand ? ((cand.prenom || '') + ' ' + (cand.nom || '')).trim() : (conv.candidature_id ? 'Étudiant inconnu' : 'Conversation générale');
+    const filiere = cand?.filiere || cand?.filiereBac || '';
+    const preview = conv.lastMsg.content.length > 55 ? conv.lastMsg.content.slice(0, 55) + '…' : conv.lastMsg.content;
+    const date = new Date(conv.lastMsg.created_at).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' });
+    const isActive = currentFacMsgConv &&
+      currentFacMsgConv.candidature_id === conv.candidature_id ? ' active' : '';
+    const unreadClass = conv.hasUnread ? ' msg-conv-unread' : '';
+    const fromLabel = conv.lastMsg.sender_role === 'fac' || conv.lastMsg.sender_role?.startsWith('fac_') ? 'Vous' : 'Edumove';
+    return `<div class="msg-conv-item${isActive}${unreadClass}" onclick="selectFacConv(${originalIndex})">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px;">
+        <div class="msg-conv-subject" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(candName || 'Général')}</div>
+        <div class="msg-conv-date" style="float:none;flex-shrink:0;">${date}</div>
+      </div>
+      ${filiere ? `<div style="font-size:11px;color:var(--uni-color);font-weight:600;margin-bottom:2px;">${esc(filiere)}</div>` : ''}
+      <div class="msg-conv-preview">${esc(fromLabel + ' : ' + preview)}</div>
+    </div>`;
+  }).join('');
+}
+
+function selectFacConv(index) {
+  const conv = facMsgConversations[index];
+  currentFacMsgConv = conv;
+  renderConvList();
+
+  const cand = conv.candidature_id ? allCandidatures.find(x => x.id === conv.candidature_id) : null;
+  const candName = cand ? ((cand.prenom || '') + ' ' + (cand.nom || '')).trim() : (conv.candidature_id ? 'Étudiant' : 'Conversation générale');
+  const filiere = cand?.filiere || cand?.filiereBac || '';
+  const headerEl = document.getElementById('msg-thread-header');
+  headerEl.innerHTML = `<span>${esc(candName)}${filiere ? ` <span style="font-size:12px;font-weight:500;color:var(--uni-color);margin-left:8px;">${esc(filiere)}</span>` : ''}</span>
+    <button id="fac-delete-conv-btn" onclick="deleteFacConversation()" style="background:none;border:1.5px solid #e5e7eb;border-radius:8px;color:#dc2626;font-size:11px;font-weight:600;padding:4px 10px;cursor:pointer;font-family:inherit;">🗑 Supprimer</button>`;
+  document.getElementById('msg-thread-footer').style.display = 'flex';
+
+  const body = document.getElementById('msg-thread-body');
+  body.innerHTML = conv.messages.map(m => {
+    const isFac = m.sender_role === 'fac' || m.sender_role === 'fac_link' || m.sender_role === 'fac_ucjc' || m.sender_role === 'fac_ue';
+    const time = new Date(m.created_at).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+    const delBtn = `<button class="msg-del-btn" title="Supprimer" onclick="event.stopPropagation();deleteFacMsg(${m.id})">&times;</button>`;
+    return `<div class="msg-bubble-wrap">
+      ${delBtn}
+      <div class="msg-bubble ${isFac ? 'from-fac' : 'from-admin'}">${highlightMentions(m.content)}</div>
+      <div class="msg-bubble-meta" style="text-align:${isFac ? 'right' : 'left'}">${isFac ? 'Vous' : 'Edumove'} · ${time}</div>
+    </div>`;
+  }).join('');
+  body.scrollTop = body.scrollHeight;
+}
+
+async function sendFacReply() {
+  if (!currentFacMsgConv) return;
+  const input = document.getElementById('msg-thread-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+
+  const facKey = getFacKey();
+  const { data: { user } } = await supabase.auth.getUser();
+  const _hasEdumoveMention = /@edumove/i.test(text);
+  // Strip @Edumove before saving to DB (not visible in student chat, only in fac↔edumove messaging)
+  const _contentToSave = _hasEdumoveMention ? text.replace(/@edumove/gi, '').replace(/\s{2,}/g, ' ').trim() : text;
+
+  const { error } = await supabase.from('fac_messages').insert({
+    fac_key: facKey,
+    candidature_id: currentFacMsgConv.candidature_id || null,
+    sender_role: 'fac',
+    sender_email: user?.email || facKey.toLowerCase(),
+    content: _contentToSave
+  });
+
+  if (error) { console.error('Send reply error:', error); alert('Erreur lors de l\'envoi.'); return; }
+
+  // Notifier admissions@edumove.fr
+  const candName = currentFacMsgConv.candidature_id
+    ? (() => { const c = allCandidatures.find(x => x.id === currentFacMsgConv.candidature_id); return c ? c.prenom + ' ' + c.nom : null; })()
+    : null;
+  fetch('/api/notify-fac-message', {
+    method: 'POST', headers: apiHeaders(),
+    body: JSON.stringify({ direction: 'fac_to_admin', facKey, senderEmail: user?.email, content: _contentToSave, studentName: candName })
+  }).catch(e => console.warn('Email admin non envoyé:', e));
+
+  // Notification @mention si @Edumove tagué
+  if (_hasEdumoveMention) {
+    fetch('/api/notify-mention', {
+      method: 'POST', headers: apiHeaders(),
+      body: JSON.stringify({ mentionedParty: 'edumove', facKey, senderName: user?.email, studentName: candName, content: text, candidatureId: currentFacMsgConv.candidature_id || null })
+    }).catch(e => console.warn('Mention notification non envoyée:', e));
+  }
+
+  await loadFacMessaging();
+  // Re-select current conv
+  const idx = facMsgConversations.findIndex(c => c.candidature_id === currentFacMsgConv.candidature_id);
+  if (idx >= 0) selectFacConv(idx);
+}
+
+async function deleteFacMsg(msgId) {
+  if (!confirm('Supprimer ce message ?')) return;
+  const { error } = await supabase.from('fac_messages').delete().eq('id', msgId);
+  if (error) { console.error('Delete msg error:', error); alert('Erreur : ' + error.message); return; }
+  const candId = currentFacMsgConv?.candidature_id;
+  await loadFacMessaging();
+  if (candId !== undefined) {
+    const idx = facMsgConversations.findIndex(c => c.candidature_id === candId);
+    if (idx >= 0) selectFacConv(idx);
+  }
+}
+
+async function deleteFacConversation() {
+  if (!currentFacMsgConv) return;
+  if (!confirm('Supprimer toute cette conversation et tous ses messages ? Cette action est irréversible.')) return;
+  const facKey = getFacKey();
+  let query = supabase.from('fac_messages').delete().eq('fac_key', facKey);
+  if (currentFacMsgConv.candidature_id) {
+    query = query.eq('candidature_id', currentFacMsgConv.candidature_id);
+  } else {
+    query = query.is('candidature_id', null);
+  }
+  const { error } = await query;
+  if (error) { console.error('Delete conv error:', error); alert('Erreur : ' + error.message); return; }
+  currentFacMsgConv = null;
+  document.getElementById('msg-thread-header').innerHTML = '<span>Conversation supprimée</span>';
+  document.getElementById('msg-thread-body').innerHTML = '<div class="msg-empty-state">Conversation supprimée</div>';
+  document.getElementById('msg-thread-footer').style.display = 'none';
+  await loadFacMessaging();
+}
+</script>
+</body>
+</html>
