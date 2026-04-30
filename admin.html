@@ -1174,6 +1174,12 @@ body.closer-mode .msg-new-btn { display: none !important; }
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <script src="status-engine.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script>
+  if (window.pdfjsLib) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  }
+</script>
 </head>
 <body>
 
@@ -4988,6 +4994,12 @@ function renderDetailPage(c) {
             <option value="autre_agence" ${_es==='autre_agence'?'selected':''}>Autre agence</option>
           </select>
         </div>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#1b1d3a;">📄 Note du rapport technique académique</div>
+          </div>
+          <div id="rapport-grade-${c.id}" style="font-size:13px;color:#1b1d3a;"><span style="color:#94a3b8;">Chargement…</span></div>
+        </div>
         <div id="uemcomp-block-${c.id}" data-state="${_uemComp}" style="background:${(_uemCompMeta[_uemComp]||_uemCompMeta.red).bg};border:1px solid ${(_uemCompMeta[_uemComp]||_uemCompMeta.red).border};border-radius:10px;padding:10px 12px;margin-bottom:10px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
             <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#1b1d3a;">📝 Avancée du remplissage UEM</div>
@@ -5069,6 +5081,17 @@ function renderDetailPage(c) {
   html += `</div></div>`;
 
   document.getElementById('detail-cards').innerHTML = html;
+
+  // Note rapport technique académique (UEM) : on rend toujours la box,
+  // puis on déclenche l'extraction PDF.js si elle n'a pas encore été faite.
+  if (uniSel.UE) {
+    setTimeout(() => {
+      try { renderRapportGradeBox(c.id); } catch (_) {}
+      if (c.documents && c.documents.UE_rapport_technique) {
+        try { ensureRapportGrade(c.id); } catch (_) {}
+      }
+    }, 80);
+  }
 
   // ── RIGHT PANEL: MESSAGING (sticky) ──
   let msgHtml = '';
@@ -5879,6 +5902,103 @@ async function addUniSelection(candidatureId) {
 
   renderTable();
   viewDetail(candidatureId);
+}
+
+// ── Extraction note rapport technique académique (UEM) ──
+// Lit la note "Nota media española 0-10" + "Nota media del país" depuis le PDF
+// uploadé par l'étudiant et la stocke dans uni_tracking.UE_rapport_grade.
+async function extractRapportGrade(pdfUrl) {
+  if (!window.pdfjsLib) throw new Error('PDF.js non chargé');
+  const loadingTask = window.pdfjsLib.getDocument({ url: pdfUrl, useSystemFonts: true });
+  const pdf = await loadingTask.promise;
+  let fullText = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const tc = await page.getTextContent();
+    fullText += '\n' + tc.items.map(it => it.str).join(' ');
+  }
+  // Normalisation : enlève accents, met en minuscule
+  const norm = fullText
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+  // "Nota media española 0-10 / Spanish average grade 0-10  7.37"
+  // On ancre sur le libellé anglais (qui apparaît APRÈS le libellé espagnol)
+  // pour éviter de capturer le "0" du second "0-10".
+  const reSpain = /spanish\s+average\s+grade\s*0\s*[-\u2013]\s*10[^0-9]*([0-9]+(?:[.,][0-9]+)?)/i;
+  const mS = norm.match(reSpain);
+  // "Country average grade" apparaît 2 fois dans le PDF (1 = stats pays, 2 = la
+  // valeur du candidat dans le tableau "CALCULO DE LA NOTA MEDIA"). On prend la
+  // dernière occurrence.
+  const reCountryAll = /country\s+average\s+grade[^0-9]*([0-9]+(?:[.,][0-9]+)?)/gi;
+  const matchesC = [...norm.matchAll(reCountryAll)];
+  const mC = matchesC.length ? matchesC[matchesC.length - 1] : null;
+  const parse = (m) => m ? parseFloat(m[1].replace(',', '.')) : null;
+  return { spain10: parse(mS), country: parse(mC), found: !!mS };
+}
+
+async function ensureRapportGrade(candidatureId) {
+  const c = allCandidatures.find(x => x.id === candidatureId);
+  if (!c) return;
+  const docs = c.documents || {};
+  const url = docs.UE_rapport_technique;
+  if (!url || typeof url !== 'string' || !url.startsWith('http')) return;
+  const tracking = c.uni_tracking || {};
+  // Si déjà extrait pour ce PDF, on ne refait rien (clé = url stable)
+  if (tracking.UE_rapport_grade_source === url) return;
+  // UI : marque "extraction en cours"
+  const box = document.getElementById('rapport-grade-' + candidatureId);
+  if (box) box.innerHTML = '<span style="color:#64748b;">⏳ Lecture du rapport en cours…</span>';
+  try {
+    const r = await extractRapportGrade(url);
+    tracking.UE_rapport_grade = r.spain10;
+    tracking.UE_rapport_grade_country = r.country;
+    tracking.UE_rapport_grade_source = url;
+    tracking.UE_rapport_grade_extracted_at = new Date().toISOString();
+    await supabase.from('candidatures').update({ uni_tracking: tracking }).eq('id', candidatureId);
+    c.uni_tracking = tracking;
+    renderRapportGradeBox(candidatureId);
+  } catch (err) {
+    console.error('extractRapportGrade error:', err);
+    if (box) box.innerHTML = '<span style="color:#c62828;">❌ Lecture impossible. <a href="#" onclick="event.preventDefault();reExtractRapportGrade(\'' + candidatureId + '\')">Réessayer</a></span>';
+  }
+}
+
+async function reExtractRapportGrade(candidatureId) {
+  const c = allCandidatures.find(x => x.id === candidatureId);
+  if (!c) return;
+  const tracking = c.uni_tracking || {};
+  delete tracking.UE_rapport_grade_source;
+  c.uni_tracking = tracking;
+  await ensureRapportGrade(candidatureId);
+}
+
+function renderRapportGradeBox(candidatureId) {
+  const c = allCandidatures.find(x => x.id === candidatureId);
+  if (!c) return;
+  const box = document.getElementById('rapport-grade-' + candidatureId);
+  if (!box) return;
+  const docs = c.documents || {};
+  const url = docs.UE_rapport_technique;
+  const tracking = c.uni_tracking || {};
+  const grade = tracking.UE_rapport_grade;
+  const country = tracking.UE_rapport_grade_country;
+  if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+    box.innerHTML = '<span style="color:#94a3b8;">Rapport non encore envoyé par l\'étudiant·e.</span>';
+    return;
+  }
+  if (grade == null) {
+    box.innerHTML = '<span style="color:#c62828;">⚠️ Note non détectée. <a href="' + url + '" target="_blank" rel="noopener">Ouvrir le PDF</a> · <a href="#" onclick="event.preventDefault();reExtractRapportGrade(\'' + candidatureId + '\')">Réessayer</a></span>';
+    return;
+  }
+  const gradeStr = grade.toFixed(2).replace('.', ',');
+  const countryStr = country != null ? country.toFixed(2).replace('.', ',') : null;
+  box.innerHTML = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
+    '<div style="font-size:18px;font-weight:800;color:#0f766e;">' + gradeStr + '<span style="font-size:11px;color:#64748b;font-weight:600;"> / 10</span></div>' +
+    (countryStr ? '<div style="font-size:11px;color:#64748b;">(échelle pays : <strong>' + countryStr + '/20</strong>)</div>' : '') +
+    '<a href="' + url + '" target="_blank" rel="noopener" style="font-size:11px;color:#615ca5;text-decoration:underline;margin-left:auto;">Voir le rapport</a>' +
+    ' <a href="#" onclick="event.preventDefault();reExtractRapportGrade(\'' + candidatureId + '\')" style="font-size:11px;color:#64748b;">↻ Re-lire</a>' +
+    '</div>';
 }
 
 // ── UEM completion (rouge / orange / vert) ──
