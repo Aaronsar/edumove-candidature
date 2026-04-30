@@ -3895,6 +3895,8 @@ function renderTable() {
       UCJC: ['en_attente','dossier_envoye','entretien_planifie','entretien_passe','accepte','inscrit','refuse','autre_agence'],
       UE: ['en_attente','dossier_envoye','tests_passes','accepte','acompte_verse','inscrit','refuse','autre_agence']
     };
+    const uemCompColors = { red: '#dc2626', orange: '#f59e0b', green: '#16a34a' };
+    const uemCompTitles = { red: 'UEM — non commencée', orange: 'UEM — partielle', green: 'UEM — complète' };
     let trackSummary = '';
     ['LINK', 'UCJC', 'UE'].forEach(uni => {
       if (!sel[uni]) return;
@@ -3903,7 +3905,13 @@ function renderTable() {
       const opts = (uniTrackOptions[uni] || []).map(v =>
         '<option value="' + v + '"' + (v === st ? ' selected' : '') + '>' + (trackLabels[v] || v) + '</option>'
       ).join('');
-      trackSummary += '<div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;"><span style="font-weight:700;font-size:10px;min-width:32px;color:var(--navy);">' + uni + '</span><select onchange="quickChangeTrack(\'' + c.id + '\',\'' + uni + '\',this.value)" onclick="event.stopPropagation()" style="padding:2px 4px;border-radius:12px;font-size:9px;font-weight:600;border:1.5px solid var(--border);font-family:inherit;cursor:pointer;max-width:110px;">' + opts + '</select></div>';
+      let dot = '';
+      if (uni === 'UE') {
+        const cv = tracking.UE_completion || 'red';
+        const col = uemCompColors[cv] || uemCompColors.red;
+        dot = '<span title="' + (uemCompTitles[cv] || uemCompTitles.red) + '" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + col + ';margin-right:3px;flex-shrink:0;box-shadow:0 0 0 1.5px #fff,0 0 0 2.5px ' + col + '33;"></span>';
+      }
+      trackSummary += '<div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;">' + dot + '<span style="font-weight:700;font-size:10px;min-width:32px;color:var(--navy);">' + uni + '</span><select onchange="quickChangeTrack(\'' + c.id + '\',\'' + uni + '\',this.value)" onclick="event.stopPropagation()" style="padding:2px 4px;border-radius:12px;font-size:9px;font-weight:600;border:1.5px solid var(--border);font-family:inherit;cursor:pointer;max-width:110px;">' + opts + '</select></div>';
     });
     if (!trackSummary) trackSummary = '<span style="color:var(--text-muted);font-size:10px;">\u2014</span>';
 
@@ -4950,6 +4958,19 @@ function renderDetailPage(c) {
       _eSteps.push({ done: _eIdx >= 4, txt: 'Acompte 2 500\u20ac versé' });
       _eSteps.push({ done: _es === 'inscrit', txt: 'Inscription définitive confirmée' });
 
+      const _uemComp = (c.uni_tracking && c.uni_tracking.UE_completion) || 'red';
+      const _uemCompMeta = {
+        red:    { dot: '#dc2626', bg: '#fef2f2', border: '#fecaca', label: 'Non commencée' },
+        orange: { dot: '#f59e0b', bg: '#fffbeb', border: '#fde68a', label: 'Partiellement complétée' },
+        green:  { dot: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', label: 'Complétée à 100\u00a0%' }
+      };
+      const _uemCompLabel = (_uemCompMeta[_uemComp] || _uemCompMeta.red).label;
+      const _uemBtn = (val, emoji, txt) => {
+        const m = _uemCompMeta[val];
+        const active = _uemComp === val;
+        return `<button type="button" onclick="updateUEMCompletion('${c.id}','${val}')" id="uemcomp-${val}-${c.id}" title="${txt}" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:6px 10px;border-radius:8px;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;background:${active?m.bg:'#fff'};border:1.5px solid ${active?m.dot:'#e5e7eb'};color:${active?m.dot:'#64748b'};box-shadow:${active?'0 0 0 2px '+m.bg:'none'};transition:all .15s;">${emoji} ${txt}</button>`;
+      };
+
       html += `<div class="uni-selection-card ue-card" style="margin-bottom:12px;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
           <div>
@@ -4966,6 +4987,18 @@ function renderDetailPage(c) {
             <option value="inscrit" ${_es==='inscrit'?'selected':''}>Inscrit</option>
             <option value="autre_agence" ${_es==='autre_agence'?'selected':''}>Autre agence</option>
           </select>
+        </div>
+        <div id="uemcomp-block-${c.id}" data-state="${_uemComp}" style="background:${(_uemCompMeta[_uemComp]||_uemCompMeta.red).bg};border:1px solid ${(_uemCompMeta[_uemComp]||_uemCompMeta.red).border};border-radius:10px;padding:10px 12px;margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#1b1d3a;">📝 Avancée du remplissage UEM</div>
+            <div id="uemcomp-label-${c.id}" style="font-size:11px;font-weight:600;color:${(_uemCompMeta[_uemComp]||_uemCompMeta.red).dot};">● ${_uemCompLabel}</div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            ${_uemBtn('red',    '🔴', 'Non commencée')}
+            ${_uemBtn('orange', '🟠', 'Partielle')}
+            ${_uemBtn('green',  '🟢', 'Complète')}
+          </div>
+          <div style="font-size:10px;color:#64748b;margin-top:6px;line-height:1.4;">Passez en <strong>vert</strong> quand l'étudiant·e a terminé sa page de candidature — un email sera automatiquement envoyé à Jessica Simi (Universidad Europea).</div>
         </div>
         <div style="display:flex;gap:14px;font-size:11px;flex-wrap:wrap;">
           <div><span style="color:var(--text-muted);">Filière :</span> <strong>${filiereLabels[_ef] || uniSel.UE.filiereLabel || '\u2014'}</strong></div>
@@ -5846,6 +5879,78 @@ async function addUniSelection(candidatureId) {
 
   renderTable();
   viewDetail(candidatureId);
+}
+
+// ── UEM completion (rouge / orange / vert) ──
+async function updateUEMCompletion(candidatureId, value) {
+  if (!['red','orange','green'].includes(value)) return;
+  // Permissions : super_admin et fac_ue uniquement
+  const role = window.adminRole;
+  if (role && role !== 'super_admin' && role !== 'fac_ue') {
+    alert('Vous n\'avez pas les permissions pour modifier ce statut.');
+    return;
+  }
+  const c = allCandidatures.find(x => x.id === candidatureId);
+  if (!c) return;
+  const tracking = c.uni_tracking || {};
+  const prev = tracking.UE_completion || 'red';
+  if (prev === value) return;
+  tracking.UE_completion = value;
+  try {
+    const { error } = await supabase.from('candidatures').update({ uni_tracking: tracking }).eq('id', candidatureId);
+    if (error) { alert('Erreur : ' + error.message); return; }
+    c.uni_tracking = tracking;
+
+    // Mise à jour visuelle locale du bloc
+    const meta = {
+      red:    { dot: '#dc2626', bg: '#fef2f2', border: '#fecaca', label: 'Non commencée' },
+      orange: { dot: '#f59e0b', bg: '#fffbeb', border: '#fde68a', label: 'Partiellement complétée' },
+      green:  { dot: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', label: 'Complétée à 100\u00a0%' }
+    };
+    const block = document.getElementById('uemcomp-block-' + candidatureId);
+    if (block) {
+      const m = meta[value];
+      block.dataset.state = value;
+      block.style.background = m.bg;
+      block.style.borderColor = m.border;
+      const lab = document.getElementById('uemcomp-label-' + candidatureId);
+      if (lab) { lab.style.color = m.dot; lab.textContent = '● ' + m.label; }
+      ['red','orange','green'].forEach(v => {
+        const btn = document.getElementById('uemcomp-' + v + '-' + candidatureId);
+        if (!btn) return;
+        const active = v === value;
+        const mm = meta[v];
+        btn.style.background = active ? mm.bg : '#fff';
+        btn.style.borderColor = active ? mm.dot : '#e5e7eb';
+        btn.style.color = active ? mm.dot : '#64748b';
+        btn.style.boxShadow = active ? '0 0 0 2px ' + mm.bg : 'none';
+      });
+    }
+
+    // Refresh la table pour mettre à jour la pastille
+    if (typeof renderTable === 'function') renderTable();
+
+    // Si on passe au vert, envoyer la notification email à Jessica (UEM)
+    if (value === 'green' && prev !== 'green') {
+      try {
+        const resp = await fetch('/api/notify-uem-complete', {
+          method: 'POST',
+          headers: apiHeaders(),
+          body: JSON.stringify({ nom: c.nom || '', prenom: c.prenom || '' })
+        });
+        if (!resp.ok) {
+          console.warn('notify-uem-complete failed:', resp.status);
+          alert('⚠️ Statut enregistré, mais l\'email à Jessica n\'a pas pu être envoyé. Réessayez ou prévenez-la manuellement.');
+        }
+      } catch (e) {
+        console.warn('notify-uem-complete error:', e);
+        alert('⚠️ Statut enregistré, mais l\'email à Jessica n\'a pas pu être envoyé.');
+      }
+    }
+  } catch (err) {
+    console.error('updateUEMCompletion error:', err);
+    alert('Erreur lors de la mise à jour.');
+  }
 }
 
 async function updateUniTracking(candidatureId, uniKey, field, value) {

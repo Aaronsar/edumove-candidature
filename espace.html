@@ -1544,6 +1544,7 @@ async function saveProfil() {
     userProfile.departement = dep;
     fillProfilDropdown();
     cancelEditProfil();
+    notifyAdminActivity('profile_update', 'Nom: ' + nom + ' · Pr\u00e9nom: ' + prenom + ' · T\u00e9l: ' + tel + ' · D\u00e9p: ' + dep);
   } catch(e) { alert('Erreur lors de la sauvegarde.'); console.error(e); }
 }
 
@@ -1929,6 +1930,26 @@ function renderDocuments() {
   container.innerHTML = html;
 }
 
+// ── Notification admin (fire-and-forget) ──
+function notifyAdminActivity(eventType, detail) {
+  try {
+    const c = (typeof candidatureData !== 'undefined' && candidatureData) ? candidatureData : {};
+    const cid = (typeof candidatureId !== 'undefined' ? candidatureId : (c.id || null));
+    fetch('/api/notify-admin-activity', {
+      method: 'POST',
+      headers: apiHeaders(),
+      body: JSON.stringify({
+        candidatureId: cid,
+        prenom: c.prenom || (typeof userProfile !== 'undefined' ? userProfile.prenom : '') || '',
+        nom: c.nom || (typeof userProfile !== 'undefined' ? userProfile.nom : '') || '',
+        email: c.email || (typeof currentUser !== 'undefined' && currentUser ? currentUser.email : '') || '',
+        eventType,
+        detail: detail || ''
+      })
+    }).catch(() => {});
+  } catch (_) {}
+}
+
 async function uploadDocument(input) {
   if (!input.files || !input.files[0]) return;
   const file = input.files[0];
@@ -1956,6 +1977,7 @@ async function uploadDocument(input) {
     await supabase.from('candidatures').update({ documents: updatedDocs }).eq('id', candidatureId);
     candidatureData.documents = updatedDocs;
     renderDocuments();
+    notifyAdminActivity('doc_upload', 'Fichier : ' + file.name);
 
     progressEl.textContent = 'Document envoyé !';
     setTimeout(() => { progressEl.style.display = 'none'; }, 2000);
@@ -3228,6 +3250,7 @@ async function confirmAllSelections() {
     }).eq('id', candidatureId);
     candidatureData.uni_selections = selections;
     candidatureData.uni_selections_at = now;
+    notifyAdminActivity('uni_selections_update', 'Choix : ' + Object.keys(selections || {}).join(', '));
     showSelectionsSaved(selections);
     // Lancer le timer de validation visuelle
     startValidationCountdown();
@@ -3402,6 +3425,7 @@ async function handleDocUpload(input, uniKey, docKey) {
     const updatedDocs = { ...(currentCand?.documents || {}), [fullKey]: url };
     await supabase.from('candidatures').update({ documents: updatedDocs }).eq('id', candidatureId);
     candidatureData.documents = updatedDocs;
+    notifyAdminActivity('doc_upload_uni', uniKey + ' / ' + docKey + ' — ' + file.name);
 
     if (statusEl) statusEl.innerHTML = '<span class="uni-doc-upload-status">&#x2705; Envoyé</span>';
     input.value = '';

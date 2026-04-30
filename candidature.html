@@ -1924,9 +1924,10 @@ async function submitCandidature() {
       niveau: ori.level
     };
 
-    let docRef, dbError;
+    let docRef, dbError, _wasEdit = false;
     if (window._editingCandidature) {
       // Mode édition : UPDATE
+      _wasEdit = true;
       const res = await supabase.from('candidatures').update(payload).eq('id', window._editingCandidature.id).select().single();
       docRef = res.data;
       dbError = res.error;
@@ -1948,6 +1949,22 @@ async function submitCandidature() {
       dbError = res.error;
     }
     if (dbError) throw dbError;
+
+    // Notification admissions@edumove.fr (fire-and-forget)
+    try {
+      fetch('/api/notify-admin-activity', {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          candidatureId: docRef && docRef.id,
+          prenom: (userProfile && userProfile.prenom) || payload.prenom || '',
+          nom: (userProfile && userProfile.nom) || payload.nom || '',
+          email: (userProfile && userProfile.email) || (currentUser && currentUser.email) || payload.email || '',
+          eventType: _wasEdit ? 'candidature_edit' : 'candidature_submit',
+          detail: 'Filière : ' + (payload.filiere || '\u2014') + ' · Destination : ' + (payload.destination || '\u2014')
+        })
+      }).catch(() => {});
+    } catch (_) {}
 
     // Sync vers HubSpot (non-bloquant)
     syncToHubSpot({
