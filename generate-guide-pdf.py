@@ -145,7 +145,7 @@ def build_pdf():
     story.append(Paragraph('<b>Pays :</b> Italie — Rome', styles['Body']))
     story.append(Paragraph('<b>Langue :</b> Italien (pas de prérequis linguistique à l\'inscription)', styles['Body']))
     story.append(Paragraph('<b>Test :</b> QCM en français — 80 questions, ~2h30 — 200€ de frais d\'inscription', styles['Body']))
-    story.append(Paragraph('<b>Date du test :</b> 15 avril 2026 — Paris', styles['Body']))
+    story.append(Paragraph('<b>Date du test :</b> 25 juin 2026 — Paris', styles['Body']))
     story.append(Spacer(1, 3*mm))
 
     # LINK pricing table
