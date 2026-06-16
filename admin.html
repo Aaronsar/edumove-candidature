@@ -1298,13 +1298,27 @@ body.closer-mode .msg-new-btn { display: none !important; }
     <!-- Toolbar -->
     <div class="toolbar">
       <input type="text" class="search-input" id="search-input" placeholder="Rechercher par nom, prénom ou email..." oninput="applyFilters()"/>
-      <select class="filter-select" id="filter-status" onchange="applyFilters()">
+<!-- Filtre statut MULTI-SELECT (inclure/exclure) — voir initStatusFilter() -->
+      <div class="status-multi" id="filter-status-multi" style="position:relative;">
+        <button type="button" class="filter-select" id="filter-status-btn" onclick="toggleStatusFilterPanel()" style="cursor:pointer;display:flex;align-items:center;gap:6px;min-width:200px;text-align:left;justify-content:space-between;">
+          <span id="filter-status-label">Tous statuts actifs</span>
+          <span style="font-size:10px;color:var(--text-muted);">▾</span>
+        </button>
+        <div id="filter-status-panel" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:50;background:white;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.12);padding:8px;min-width:280px;max-width:340px;">
+          <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;padding:6px 8px;display:flex;align-items:center;justify-content:space-between;">
+            <span>Statuts</span>
+            <button type="button" onclick="resetStatusFilter()" style="background:none;border:none;color:#7c3aed;font-size:11px;font-weight:600;cursor:pointer;text-transform:none;letter-spacing:0;font-family:inherit;text-decoration:underline;">Réinitialiser</button>
+          </div>
+          <div id="filter-status-list" style="display:flex;flex-direction:column;gap:2px;"></div>
+          <div style="font-size:10px;color:var(--text-muted);padding:8px;border-top:1px solid var(--border);margin-top:4px;line-height:1.5;">
+            Cliquez sur un statut pour cycler entre :<br>
+            ⬜ Indifférent → ✅ Inclus → ❌ Exclu
+          </div>
+        </div>
+      </div>
+      <!-- Ancien filtre simple (caché, conservé pour compatibilité éventuelle) -->
+      <select class="filter-select" id="filter-status" onchange="applyFilters()" style="display:none;">
         <option value="">Tous statuts actifs</option>
-        <option value="non_soumise">Candidature non soumise</option>
-        <option value="en_attente">Candidature non d&eacute;pos&eacute;e</option>
-        <option value="en_cours">En cours de traitement</option>
-        <option value="reponse_edumove">R&eacute;ponse Edumove</option>
-        <option value="choix_valide">Choix valid&eacute;</option>
       </select>
       <select class="filter-select" id="filter-suivi-fac" onchange="applyFilters()">
         <option value="">Suivi par fac — Tous</option>
@@ -3778,21 +3792,131 @@ function updateStats() {
 // ══════════════════════════════════════════
 let _showingArchives = false;
 
+// ── Filtre statut multi-select (inclure / exclure) ──
+// État : { non_soumise: 'in' | 'out' | undefined, ... }
+let _statusFilterState = {};
+
+const _STATUS_OPTIONS = [
+  { key: 'non_soumise',     label: 'Candidature non soumise',  color: '#737373' },
+  { key: 'en_attente',      label: 'Candidature non déposée',  color: '#737373' },
+  { key: 'en_cours',        label: 'En cours de traitement',   color: '#7c3aed' },
+  { key: 'reponse_edumove', label: 'Réponse Edumove',          color: '#1d4ed8' },
+  { key: 'choix_valide',    label: 'Choix validé',             color: '#065f46' },
+  { key: 'inscrit',         label: 'Inscrit (suivi fac)',      color: '#16a34a' },
+];
+
+function _isInscrit(c) {
+  const t = c && c.uni_tracking;
+  if (!t) return false;
+  return ['LINK_status', 'UCJC_status', 'UE_status'].some(k => t[k] === 'inscrit');
+}
+
+function initStatusFilter() {
+  const list = document.getElementById('filter-status-list');
+  if (!list) return;
+  list.innerHTML = _STATUS_OPTIONS.map(opt => `
+    <button type="button" data-status-key="${opt.key}" onclick="cycleStatusFilter('${opt.key}')"
+            style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;background:none;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;color:#1b1d3a;text-align:left;transition:background 0.15s;"
+            onmouseover="this.style.background='#f8fafc'"
+            onmouseout="this.style.background='none'">
+      <span class="status-multi-mark" id="status-mark-${opt.key}" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:1.5px solid #d1d5db;border-radius:5px;font-size:13px;line-height:1;flex-shrink:0;background:white;">⬜</span>
+      <span style="flex:1;">${opt.label}</span>
+      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${opt.color};"></span>
+    </button>
+  `).join('');
+  // Click outside pour fermer
+  document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('filter-status-multi');
+    const panel = document.getElementById('filter-status-panel');
+    if (!wrap || !panel) return;
+    if (!wrap.contains(e.target) && panel.style.display === 'block') {
+      panel.style.display = 'none';
+    }
+  });
+  _updateStatusFilterUi();
+}
+
+function toggleStatusFilterPanel() {
+  const panel = document.getElementById('filter-status-panel');
+  if (!panel) return;
+  panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+}
+
+function cycleStatusFilter(key) {
+  const cur = _statusFilterState[key];
+  if (!cur) _statusFilterState[key] = 'in';          // ⬜ → ✅
+  else if (cur === 'in') _statusFilterState[key] = 'out';  // ✅ → ❌
+  else delete _statusFilterState[key];                // ❌ → ⬜
+  _updateStatusFilterUi();
+  applyFilters();
+}
+
+function resetStatusFilter() {
+  _statusFilterState = {};
+  _updateStatusFilterUi();
+  applyFilters();
+}
+
+function _updateStatusFilterUi() {
+  // Update les marks dans le panneau
+  for (const opt of _STATUS_OPTIONS) {
+    const mark = document.getElementById('status-mark-' + opt.key);
+    if (!mark) continue;
+    const st = _statusFilterState[opt.key];
+    if (st === 'in') {
+      mark.textContent = '✅';
+      mark.style.borderColor = '#10b981';
+      mark.style.background = '#ecfdf5';
+    } else if (st === 'out') {
+      mark.textContent = '❌';
+      mark.style.borderColor = '#ef4444';
+      mark.style.background = '#fef2f2';
+    } else {
+      mark.textContent = '⬜';
+      mark.style.borderColor = '#d1d5db';
+      mark.style.background = 'white';
+    }
+  }
+  // Update le label du bouton
+  const lbl = document.getElementById('filter-status-label');
+  if (!lbl) return;
+  const inc = Object.keys(_statusFilterState).filter(k => _statusFilterState[k] === 'in');
+  const exc = Object.keys(_statusFilterState).filter(k => _statusFilterState[k] === 'out');
+  if (inc.length === 0 && exc.length === 0) {
+    lbl.textContent = 'Tous statuts actifs';
+  } else if (inc.length > 0 && exc.length === 0) {
+    lbl.textContent = inc.length === 1
+      ? (_STATUS_OPTIONS.find(o => o.key === inc[0])?.label || inc[0])
+      : `${inc.length} statuts inclus`;
+  } else if (exc.length > 0 && inc.length === 0) {
+    lbl.textContent = exc.length === 1
+      ? `Sauf : ${_STATUS_OPTIONS.find(o => o.key === exc[0])?.label || exc[0]}`
+      : `Sauf ${exc.length} statuts`;
+  } else {
+    lbl.textContent = `${inc.length} inclus · ${exc.length} exclus`;
+  }
+}
+
+// Init au chargement
+if (document.readyState !== 'loading') initStatusFilter();
+else document.addEventListener('DOMContentLoaded', initStatusFilter);
+
 function toggleArchives() {
   _showingArchives = !_showingArchives;
   const btn = document.getElementById('btn-archives');
+  const statusBtn = document.getElementById('filter-status-btn');
   if (_showingArchives) {
     btn.style.background = 'var(--navy)';
     btn.style.color = 'white';
     btn.style.border = '1.5px solid var(--navy)';
     // Disable other filters when showing archives
-    document.getElementById('filter-status').disabled = true;
+    if (statusBtn) { statusBtn.disabled = true; statusBtn.style.opacity = '0.5'; statusBtn.style.cursor = 'not-allowed'; }
     document.getElementById('filter-suivi-fac').disabled = true;
   } else {
     btn.style.background = 'transparent';
     btn.style.color = 'var(--text-muted)';
     btn.style.border = '1.5px solid var(--border)';
-    document.getElementById('filter-status').disabled = false;
+    if (statusBtn) { statusBtn.disabled = false; statusBtn.style.opacity = ''; statusBtn.style.cursor = 'pointer'; }
     document.getElementById('filter-suivi-fac').disabled = false;
   }
   applyFilters();
@@ -3800,7 +3924,6 @@ function toggleArchives() {
 
 function applyFilters() {
   const search = document.getElementById('search-input').value.toLowerCase().trim();
-  const status = document.getElementById('filter-status').value;
   const profil = document.getElementById('filter-profil').value;
   const filiere = document.getElementById('filter-filiere')?.value || '';
   const destination = document.getElementById('filter-destination')?.value || '';
@@ -3811,17 +3934,29 @@ function applyFilters() {
   const zoneFilter = document.getElementById('filter-zone')?.value || '';
   const diplomaFilter = document.getElementById('filter-diploma')?.value || '';
 
+  // Multi-status filter
+  const includedStatuses = Object.keys(_statusFilterState).filter(k => _statusFilterState[k] === 'in');
+  const excludedStatuses = Object.keys(_statusFilterState).filter(k => _statusFilterState[k] === 'out');
+  const ACTIVE_STATUSES = ['non_soumise', 'en_attente', 'en_cours', 'reponse_edumove', 'choix_valide'];
+
   filteredCandidatures = allCandidatures.filter(c => {
     // Archives mode
     if (_showingArchives) {
-      if (c.status === 'non_soumise' || c.status === 'en_attente' || c.status === 'en_cours' || c.status === 'reponse_edumove' || c.status === 'choix_valide') return false;
+      if (ACTIVE_STATUSES.includes(c.status)) return false;
+      // En mode archives on saute le filtre multi-statut
     } else {
-      // Active statuses only
-      if (!status) {
-        if (c.status !== 'non_soumise' && c.status !== 'en_attente' && c.status !== 'en_cours' && c.status !== 'reponse_edumove' && c.status !== 'choix_valide') return false;
+      // Mode normal — application du filtre multi-statut
+      const cStatus = _isInscrit(c) ? 'inscrit' : c.status;
+
+      if (includedStatuses.length > 0) {
+        // Si au moins un statut "inclus" est sélectionné → on garde uniquement ceux-là
+        if (!includedStatuses.includes(cStatus)) return false;
       } else {
-        if (c.status !== status) return false;
+        // Aucune inclusion explicite → on prend les statuts actifs par défaut (+ inscrit)
+        if (!ACTIVE_STATUSES.includes(c.status) && !_isInscrit(c)) return false;
       }
+      // Exclusions appliquées en plus
+      if (excludedStatuses.length > 0 && excludedStatuses.includes(cStatus)) return false;
     }
     if (search && !(`${c.nom} ${c.prenom} ${c.email}`).toLowerCase().includes(search)) return false;
     if (profil && c.profil !== profil) return false;
