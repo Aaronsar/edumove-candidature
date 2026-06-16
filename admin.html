@@ -1424,6 +1424,7 @@ body.closer-mode .msg-new-btn { display: none !important; }
       </select>
       <button class="btn-export" onclick="exportCSV()">Exporter CSV</button>
       <button class="btn-export" id="btn-archives" style="background:transparent;color:var(--text-muted);border:1.5px solid var(--border);" onclick="toggleArchives()">📦 Archivés</button>
+      <button class="btn-export" id="btn-bulk-message" style="background:#7c3aed;display:none;" onclick="openBulkMessageModal()">💬 Message groupé</button>
       <button class="btn-export" style="background:var(--orange);" onclick="openAddDossierModal()">+ Ajouter un dossier</button>
     </div>
 
@@ -3294,6 +3295,53 @@ body.closer-mode .msg-new-btn { display: none !important; }
   </div>
 </div>
 
+<!-- ── MODALE MESSAGE GROUPÉ (super_admin only) ── -->
+<div id="bulk-message-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;align-items:center;justify-content:center;" onclick="if(event.target===this)closeBulkMessageModal()">
+  <div style="background:white;border-radius:14px;max-width:620px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,0.3);overflow:hidden;max-height:92vh;display:flex;flex-direction:column;">
+    <div style="background:#7c3aed;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div style="color:white;font-size:16px;font-weight:700;">💬 Message privé groupé aux candidats filtrés</div>
+      <button onclick="closeBulkMessageModal()" style="background:none;border:none;color:white;font-size:22px;cursor:pointer;line-height:1;">&times;</button>
+    </div>
+    <div style="padding:24px;overflow-y:auto;">
+      <!-- Récap des filtres + compteur -->
+      <div id="bulk-msg-summary" style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:14px 16px;margin-bottom:18px;">
+        <div style="font-size:11px;font-weight:700;color:#6d28d9;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">📋 Filtres actifs</div>
+        <div id="bulk-msg-filters" style="font-size:13px;color:#4c1d95;line-height:1.7;margin-bottom:10px;"></div>
+        <div style="font-size:13px;color:#1b1d3a;"><strong id="bulk-msg-count">0</strong> candidat(s) sélectionné(s)</div>
+        <button type="button" onclick="toggleBulkMsgPreview()" style="margin-top:8px;background:none;border:none;color:#7c3aed;font-size:12px;font-weight:600;cursor:pointer;padding:0;font-family:inherit;text-decoration:underline;">▸ Voir la liste des destinataires</button>
+        <div id="bulk-msg-preview" style="display:none;margin-top:10px;max-height:160px;overflow-y:auto;background:white;border:1px solid #e4e1f5;border-radius:8px;padding:10px;font-size:12px;color:#475569;line-height:1.6;"></div>
+      </div>
+
+      <!-- Contenu du message -->
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;color:#1b1d3a;text-transform:uppercase;letter-spacing:0.04em;">Message</label>
+        <textarea id="bulk-msg-content" rows="7" placeholder="Bonjour {prenom},&#10;&#10;..." style="width:100%;box-sizing:border-box;margin-top:6px;padding:12px;border:1.5px solid #d1d5db;border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;outline:none;"></textarea>
+        <div style="font-size:11px;color:#9ca3af;margin-top:4px;">Personnalisation : <code>{prenom}</code>, <code>{nom}</code>. Le message apparaîtra dans l'espace candidat (messagerie privée).</div>
+      </div>
+
+      <!-- Option de notification email -->
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
+          <input type="checkbox" id="bulk-msg-notify-email" checked style="margin-top:3px;width:16px;height:16px;cursor:pointer;accent-color:#7c3aed;">
+          <span style="font-size:13px;color:#334155;line-height:1.5;">
+            <strong style="color:#1b1d3a;">Envoyer aussi un email de notification</strong> au candidat
+            <span style="display:block;font-size:11px;color:#64748b;margin-top:2px;">Sinon il ne verra le message qu'à sa prochaine connexion à son espace.</span>
+          </span>
+        </label>
+      </div>
+
+      <!-- Actions -->
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+        <button onclick="closeBulkMessageModal()" style="padding:10px 18px;border:1.5px solid #d1d5db;background:white;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">Annuler</button>
+        <button id="bulk-msg-send-btn" onclick="sendBulkMessage()" style="padding:10px 22px;border:none;background:#7c3aed;color:white;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Envoyer aux candidats</button>
+      </div>
+
+      <!-- Résultat -->
+      <div id="bulk-msg-result" style="display:none;margin-top:16px;padding:12px;border-radius:8px;font-size:13px;"></div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ══════════════════════════════════════════
 // STATE
@@ -3478,6 +3526,11 @@ function applyRoleRestrictions() {
   // CRM for super_admin + telepro
   if (role === 'super_admin' || role === 'telepro') {
     document.getElementById('btn-crm').style.display = '';
+  }
+  // Bouton "Message groupé" : super_admin uniquement
+  if (role === 'super_admin' || !role) {
+    const btnMsg = document.getElementById('btn-bulk-message');
+    if (btnMsg) btnMsg.style.display = '';
   }
   if (role === 'super_admin') return; // Full access
 
@@ -9109,6 +9162,178 @@ async function assignLeadsTo(email, name) {
   } catch (err) {
     alert('Erreur lors de l\'assignation.');
   }
+}
+
+// ══════════════════════════════════════════
+// MESSAGE PRIVÉ GROUPÉ AUX CANDIDATS FILTRÉS
+// ══════════════════════════════════════════
+function _getBulkMsgRecipients() {
+  // Exclut les entrées virtuelles (profils orphelins) et celles sans id/email
+  return (filteredCandidatures || []).filter(c => c && c.id && !c._virtual && c.email);
+}
+
+function _formatBulkMsgFilters() {
+  // Génère un résumé textuel des filtres actifs
+  const parts = [];
+  const status = document.getElementById('filter-status')?.value;
+  const filiere = document.getElementById('filter-filiere')?.value;
+  const destination = document.getElementById('filter-destination')?.value;
+  const profil = document.getElementById('filter-profil')?.value;
+  const zone = document.getElementById('filter-zone')?.value;
+  const suiviFac = document.getElementById('filter-suivi-fac')?.value;
+  const search = document.getElementById('search-input')?.value?.trim();
+  if (status && status !== 'all') parts.push(`<span>Statut : <strong>${status}</strong></span>`);
+  if (filiere) parts.push(`<span>Filière : <strong>${filiere}</strong></span>`);
+  if (destination) parts.push(`<span>Vœu : <strong>${destination}</strong></span>`);
+  if (profil) parts.push(`<span>Profil : <strong>${profil}</strong></span>`);
+  if (zone) parts.push(`<span>Zone : <strong>${zone}</strong></span>`);
+  if (suiviFac) parts.push(`<span>Suivi fac : <strong>${suiviFac}</strong></span>`);
+  if (search) parts.push(`<span>Recherche : <strong>"${search}"</strong></span>`);
+  return parts.length ? parts.join(' · ') : '<em style="color:#94a3b8;">Aucun filtre — tous les candidats actifs</em>';
+}
+
+function openBulkMessageModal() {
+  if (window.adminRole && window.adminRole !== 'super_admin') {
+    alert('Action réservée aux super-administrateurs.');
+    return;
+  }
+  const recipients = _getBulkMsgRecipients();
+  if (recipients.length === 0) {
+    alert('Aucun candidat sélectionné. Ajustez les filtres et réessayez.');
+    return;
+  }
+  document.getElementById('bulk-msg-filters').innerHTML = _formatBulkMsgFilters();
+  document.getElementById('bulk-msg-count').textContent = recipients.length;
+  document.getElementById('bulk-msg-content').value = '';
+  document.getElementById('bulk-msg-notify-email').checked = true;
+  const result = document.getElementById('bulk-msg-result');
+  result.style.display = 'none';
+  result.innerHTML = '';
+  // Aperçu liste fermé par défaut
+  const prev = document.getElementById('bulk-msg-preview');
+  prev.style.display = 'none';
+  prev.innerHTML = recipients.slice(0, 100).map((c, i) =>
+    `${i + 1}. <strong>${(c.prenom || '') + ' ' + (c.nom || '')}</strong> — ${c.email}`
+  ).join('<br>') + (recipients.length > 100 ? `<br><em>... et ${recipients.length - 100} autres</em>` : '');
+  // Reset le bouton aperçu
+  const sendBtn = document.getElementById('bulk-msg-send-btn');
+  sendBtn.disabled = false;
+  sendBtn.textContent = `Envoyer aux ${recipients.length} candidat${recipients.length > 1 ? 's' : ''}`;
+  document.getElementById('bulk-message-overlay').style.display = 'flex';
+}
+
+function closeBulkMessageModal() {
+  document.getElementById('bulk-message-overlay').style.display = 'none';
+}
+
+function toggleBulkMsgPreview() {
+  const el = document.getElementById('bulk-msg-preview');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function sendBulkMessage() {
+  if (window.adminRole && window.adminRole !== 'super_admin') return;
+
+  const content = document.getElementById('bulk-msg-content').value.trim();
+  const notifyEmail = document.getElementById('bulk-msg-notify-email').checked;
+  if (!content) { alert('Veuillez saisir un message.'); return; }
+  if (content.length > 4000) { alert('Message trop long (max 4000 caractères).'); return; }
+
+  const recipients = _getBulkMsgRecipients();
+  if (recipients.length === 0) { alert('Aucun destinataire.'); return; }
+
+  // Double confirmation
+  const confirmMsg = `Envoyer ce message à ${recipients.length} candidat${recipients.length > 1 ? 's' : ''} ?\n\nCette action est irréversible et apparaîtra dans leur messagerie privée${notifyEmail ? ', avec un email de notification.' : '.'}`;
+  if (!confirm(confirmMsg)) return;
+
+  const sendBtn = document.getElementById('bulk-msg-send-btn');
+  const resultEl = document.getElementById('bulk-msg-result');
+  sendBtn.disabled = true;
+  resultEl.style.display = 'block';
+  resultEl.style.background = '#fef3c7';
+  resultEl.style.color = '#92400e';
+  resultEl.innerHTML = `⏳ Envoi en cours... 0 / ${recipients.length}`;
+
+  const senderId = currentAdminUser?.id || currentAdminUser?.email || 'admin';
+  const senderName = 'Équipe EDUMOVE';
+  const results = { sent: 0, failed: 0, errors: [] };
+
+  // Helper pour personnaliser les variables
+  const personalize = (tpl, c) => {
+    const prenom = (c.prenom || '').trim();
+    const nom = (c.nom || '').trim();
+    return tpl.replace(/\{prenom\}/gi, prenom).replace(/\{nom\}/gi, nom);
+  };
+
+  // Batch INSERT dans messages (séquentiel, ~10/s pour rester safe Supabase)
+  for (let i = 0; i < recipients.length; i++) {
+    const c = recipients[i];
+    const personalizedContent = personalize(content, c);
+    try {
+      const { error } = await supabase.from('messages').insert({
+        candidature_id: c.id,
+        sender_id: senderId,
+        sender_role: 'super_admin',
+        sender_name: senderName,
+        content: personalizedContent,
+        channel: 'edumove'
+      });
+      if (error) { results.failed++; results.errors.push({ email: c.email, error: error.message }); }
+      else { results.sent++; }
+    } catch (e) {
+      results.failed++;
+      results.errors.push({ email: c.email, error: e.message });
+    }
+    sendBtn.textContent = `Envoi… ${i + 1}/${recipients.length}`;
+    resultEl.innerHTML = `⏳ Insertion messagerie : ${i + 1} / ${recipients.length} (✅ ${results.sent} · ❌ ${results.failed})`;
+    // 100 ms entre chaque INSERT
+    await new Promise(r => setTimeout(r, 100));
+  }
+
+  // Envoi des emails de notification si demandé
+  let emailResults = null;
+  if (notifyEmail && results.sent > 0) {
+    resultEl.innerHTML += `<br>📧 Envoi des emails de notification...`;
+    const okRecipients = recipients
+      .filter((_, idx) => idx < results.sent || !results.errors.find(e => e.email === recipients[idx]?.email))
+      .map(c => ({ email: c.email, prenom: c.prenom || '', nom: c.nom || '' }));
+    // Chunks de 100 destinataires (le endpoint accepte max 100 par appel)
+    const chunkSize = 100;
+    const emailAgg = { sent: 0, failed: 0 };
+    for (let i = 0; i < okRecipients.length; i += chunkSize) {
+      const chunk = okRecipients.slice(i, i + chunkSize);
+      try {
+        const res = await fetch('/api/bulk-message-notify', {
+          method: 'POST',
+          headers: apiHeaders(),
+          body: JSON.stringify({ recipients: chunk })
+        });
+        const j = await res.json().catch(() => ({}));
+        if (res.ok && j?.results) {
+          emailAgg.sent += j.results.sent || 0;
+          emailAgg.failed += j.results.failed || 0;
+        } else {
+          emailAgg.failed += chunk.length;
+        }
+      } catch (e) {
+        emailAgg.failed += chunk.length;
+      }
+    }
+    emailResults = emailAgg;
+  }
+
+  // Bilan final
+  sendBtn.disabled = false;
+  sendBtn.textContent = `Envoyer aux candidats`;
+  const okColor = results.failed === 0 ? { bg: '#d1fae5', fg: '#065f46' } : { bg: '#fef3c7', fg: '#92400e' };
+  resultEl.style.background = okColor.bg;
+  resultEl.style.color = okColor.fg;
+  let html = `<strong>✅ Terminé.</strong><br>💬 Messages : ${results.sent} envoyés, ${results.failed} échecs.`;
+  if (emailResults) html += `<br>📧 Emails de notification : ${emailResults.sent} envoyés, ${emailResults.failed} échecs.`;
+  if (results.errors.length) {
+    html += `<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:12px;">Voir les erreurs (${results.errors.length})</summary><div style="margin-top:6px;font-size:11px;font-family:monospace;max-height:120px;overflow-y:auto;">${results.errors.slice(0, 20).map(e => `${e.email} : ${e.error}`).join('<br>')}</div></details>`;
+  }
+  resultEl.innerHTML = html;
 }
 
 // ── TELEPRO RESTRICTIONS ──
